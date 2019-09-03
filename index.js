@@ -1,8 +1,22 @@
 const express = require('express')
 const app = express()
 const bodyParser = require('body-parser')
+const morgan = require('morgan')
 
 app.use(bodyParser.json())
+
+
+const logger = morgan(':method :url :status :res[content-length] - :response-time ms :reqObj')
+
+morgan.token('reqObj', function(req, res) {
+  return JSON.stringify(req.body)
+})
+morgan.token('host', function(req, res) {
+	return req.hostname;
+});
+morgan.token('folder', function(req, res) {
+  return '/api/persons'
+})
 
 let persons = [
   {
@@ -45,7 +59,6 @@ app.get('/info', (req, res) => {
 app.get('/api/persons/:id', (req, res) => {
   const id = Number(req.params.id)
   const person = persons.find(person => person.id = id)
-  console.log(person)
   res.json(person)
 })
 
@@ -63,7 +76,9 @@ const generateId = () => {
 
 app.post('/api/persons', (request, response) => {
   const body = request.body
-
+  logger(request, response, function(res, req) {
+    null
+  })
   if (!body.name) {
     return response.status(400).json({
       error: 'name missing'
@@ -76,7 +91,6 @@ app.post('/api/persons', (request, response) => {
   }
   const exists = persons.filter(person => 
     person.name.toLocaleLowerCase() === body.name.toLocaleLowerCase())
-  console.log(exists.length, body.name)
   if (exists.length > 0) {
     return response.status(400).json({
       error: 'name already in phonebook'
