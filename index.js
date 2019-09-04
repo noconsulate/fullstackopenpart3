@@ -1,8 +1,10 @@
+require('dotenv').config()
 const express = require('express')
 const app = express()
 const bodyParser = require('body-parser')
 const morgan = require('morgan')
 const cors = require('cors')
+const Person = require('./models/person')
 
 app.use(cors())
 app.use(bodyParser.json())
@@ -18,38 +20,28 @@ morgan.token('host', function(req, res) {
 });
 morgan.token('folder', function(req, res) {
   return '/api/persons'
-})
+}) 
 
-let persons = [
-  {
-    "name": "Arto Hellas",
-    "number": "040-123456",
-    "id": 1
-  },
-  {
-    "name": "Ada Lovelace",
-    "number": "39-44-5323523",
-    "id": 2
-  },
-  {
-    "name": "Dan Abramov",
-    "number": "12-43-234345",
-    "id": 3
-  },
-  {
-    "name": "Mary Poppendieck",
-    "number": "39-23-6423122",
-    "id": 4
-  }
-]
 app.get('/', (req, res) => {
   res.send('<h1>text here and ppodfdies</h2>')
 })
 
 app.get('/api/persons', (req, res) => {
-  res.json(persons)
+  Person.find({}).then(persons => {
+    res.json(persons.map(person => person.toJSON()))
+  }).catch(error => console.log(error.message))
 })
 
+app.get('/info', (req, res) => {
+  const date = new Date()
+  Person.find({}).then(persons => {
+    res.send(
+      `<P> there are ${persons.length} entries in the database<br>
+      ${date.toString()}</p>`
+    )
+  })
+})
+/*
 app.get('/info', (req, res) => {
   const date = new Date()
   res.send(
@@ -57,11 +49,11 @@ app.get('/info', (req, res) => {
     ${date.toString()} </p>`
   )
 })
-
+*/
 app.get('/api/persons/:id', (req, res) => {
-  const id = Number(req.params.id)
-  const person = persons.find(person => person.id = id)
-  res.json(person)
+  Person.findById(req.params.id).then(person => {
+    res.json(person.toJSON())
+  })
 })
 
 app.delete('/api/persons/:id', (req, res) => {
@@ -69,12 +61,6 @@ app.delete('/api/persons/:id', (req, res) => {
   persons = persons.filter(person => person.id !== id)
   res.status(204).end();
 })
-
-const generateId = () => {
-  const maxId = persons.length > 0
-  ? Math.max(...persons.map(n => n.id))
-  : 0
-}
 
 app.post('/api/persons', (request, response) => {
   const body = request.body
@@ -91,6 +77,7 @@ app.post('/api/persons', (request, response) => {
       error: 'number missing'
     })
   }
+  /*
   const exists = persons.filter(person => 
     person.name.toLocaleLowerCase() === body.name.toLocaleLowerCase())
   if (exists.length > 0) {
@@ -98,17 +85,17 @@ app.post('/api/persons', (request, response) => {
       error: 'name already in phonebook'
     })
   }
-  const person = {
+  */
+  const person = new Person({
     name: body.name,
     number: body.number,
-    id: generateId(),
-  }
+  })
 
-  persons = persons.concat(person)
-
-  response.json(person)
+  person.save().then(savedPerson => {
+    response.json(savedPerson.toJSON())
+  })
 })
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT;
 app.listen(port)
 console.log(`Server running on port ${port}`)
