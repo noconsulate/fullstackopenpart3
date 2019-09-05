@@ -6,6 +6,7 @@ const morgan = require('morgan')
 const cors = require('cors')
 const Person = require('./models/person')
 
+app.use(morgan('tiny'))
 app.use(cors())
 app.use(bodyParser.json())
 app.use(express.static('build'))
@@ -41,32 +42,41 @@ app.get('/info', (req, res) => {
     )
   })
 })
-/*
-app.get('/info', (req, res) => {
-  const date = new Date()
-  res.send(
-    `<p>There are ${persons.length} entries in the phonebook. <br>
-    ${date.toString()} </p>`
-  )
-})
-*/
-app.get('/api/persons/:id', (req, res) => {
-  Person.findById(req.params.id).then(person => {
-    res.json(person.toJSON())
-  })
+
+app.get('/api/persons/:id', (req, res, next) => {
+  Person.findById(req.params.id)
+  .then(person => {
+    if (person) {
+      res.json(person.toJSON())
+    } else {
+      res.status(404).end()
+    }
+  }).catch(error => next(error))
 })
 
-app.delete('/api/persons/:id', (req, res) => {
-  const id = Number(req.params.id)
-  persons = persons.filter(person => person.id !== id)
-  res.status(204).end();
+app.delete('/api/persons/:id', (req, res, next) => {
+  Person.findByIdAndRemove(req.params.id)
+  .then(result => {
+    res.status(404).end()
+  }).catch(error => next(error))
 })
 
-app.post('/api/persons', (request, response) => {
+app.put('/api/persons/:id', (request, response, next) => {
+  const body = request.body;
+
+  const note = {
+    name: body.name,
+    number: body.number,
+  }
+
+  Person.findByIdAndUpdate(request.params.id, note, {new: true})
+  .then(updatePerson => {
+    response.json(updatePerson.toJSON())
+  }).catch(error => next(error))
+})
+
+app.post('/api/persons', (request, response, next) => {
   const body = request.body
-  logger(request, response, function(res, req) {
-    null
-  })
   if (!body.name) {
     return response.status(400).json({
       error: 'name missing'
@@ -77,15 +87,7 @@ app.post('/api/persons', (request, response) => {
       error: 'number missing'
     })
   }
-  /*
-  const exists = persons.filter(person => 
-    person.name.toLocaleLowerCase() === body.name.toLocaleLowerCase())
-  if (exists.length > 0) {
-    return response.status(400).json({
-      error: 'name already in phonebook'
-    })
-  }
-  */
+
   const person = new Person({
     name: body.name,
     number: body.number,
@@ -93,8 +95,25 @@ app.post('/api/persons', (request, response) => {
 
   person.save().then(savedPerson => {
     response.json(savedPerson.toJSON())
-  })
+  }).catch(error => next(error))
 })
+
+const unknownEndpoint = (request, response) => {
+  response.status(404).send( {error: 'unknown endpoint'})
+}
+app.use(unknownEndpoint)
+
+const errorHandler = (error, request, response, next) => {
+  if (error.name === 'CastError' && error.kind === 'ObjectId') {
+    return response.status(400).send( {error: 'malformatted id' })
+  } else if (error.errors.name.kind === 'unique-validator') {
+    return response.status(400).send( {error: 'entry already exists' })
+  } else if (error.name === 'ValidationError') {
+    return response.status(400).json( {error: 'name or number too short' })
+  }
+  next(error)
+}
+app.use(errorHandler)
 
 const port = process.env.PORT;
 app.listen(port)

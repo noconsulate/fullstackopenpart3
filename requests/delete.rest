@@ -2,9 +2,21 @@ post http://localhost:3001/api/persons
 Content-Type: application/json
 
 {
-  "name": "arto Hellas",
-  "number": "333"
+  "name": "arto",
+  "number": "33"
 }
 
 ###
 get http://localhost:3001/api/persons/5d6f27ded76e2327bc094553
+
+###
+
+get http://localhost:3001/api/persons/4d6f27ded76e2327bc094553
+
+###
+
+get http://localhost:3001/api/persons
+
+###
+
+delete http://localhost:3001/api/persons/5d702cd832725033b0607a8b
